@@ -1,0 +1,1201 @@
+---
+title: "Spatial Econometrics Analysis on reading culture for ISI Mexico conference on May 15, 2024"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, echo=TRUE}
+#remove comment sign (#) from output
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, comment = "")
+```
+
+```{r}
+library(sf)
+library(spdep)
+library(splm)
+library(spatialreg)
+library(sp)
+library(stargazer)
+```
+
+##### Reading shape file containing the data
+
+```{r}
+## Reading shape file containing the data
+reading = st_read("reading_cultre.shp",quiet = TRUE)
+names(reading) #show variable names
+summary(reading)
+head(reading)
+View(reading)
+plot(reading)
+```
+
+```{r}
+class(reading)
+str(reading)
+
+st_is_longlat(reading) # checking whether the geographical coordinates have been projected (the result TRUE means not) 
+
+st_crs(reading) #checking which mapping was applied
+
+table(st_is_valid(reading)) # validation
+
+reading_sp<-as(reading, "Spatial") 
+class(reading_sp)
+```
+
+```{r}
+reading_points<-st_cast(reading$geometry, "MULTIPOINT")
+```
+
+```{r}
+reading_points_count<-sapply(reading_points, length)
+sum(reading_points_count) # Checking how many vertices are in all counties
+```
+
+```{r}
+reading_simple<-st_simplify(reading, dTolerance = 50)
+```
+
+```{r}
+reading_simple_points<-st_cast(reading_simple$geometry, "MULTIPOINT")
+sum(sapply(reading_simple_points, length))
+```
+
+```{r}
+reading_central<-st_centroid(reading)
+```
+
+```{r}
+plot(st_geometry(reading))
+reading_central<-st_centroid(reading)
+plot(reading_central$geometry, add=TRUE, pch=20, col="red")
+```
+
+```{r}
+library(ggplot2)
+ggplot(reading_simple) + geom_sf() + theme_bw() 
+ggplot(reading_central) + geom_sf() + theme_bw() 
+```
+
+```{r}
+ggplot(reading_simple) + geom_sf(aes(fill = reading_hr)) + theme_bw()
+```
+
+```{r}
+ggplot() + geom_sf(data=reading_simple, aes(fill=reading_hr)) +
+geom_sf(data=reading_central, col="red") + theme_bw()
+```
+
+```{r}
+ggplot() + geom_sf(data=reading_simple, aes(fill=books_read)) +
+geom_sf(data=reading_central, col="red") + theme_bw()
+```
+
+```{r}
+#names(reading)
+#spplot(reading, "reading_hr")
+```
+
+### Maps showing Spatial distributions of determinants of poverty
+
+```{r}
+#par(mfrow = c(3, 2))
+#spplot(reading, "reading_hr")
+#spplot(poverty.data, "DOM_DEBT")
+#spplot(poverty.data, "EXT_DEBT")
+#spplot(poverty.data, "ALLOCATION")
+#spplot(poverty.data, "HOUSEHOLD")
+#spplot(poverty.data, "UNEMPLOY")
+```
+
+```{r}
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf)
+```
+
+```{r}
+names(reading)
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf["reading_hr"], 
+     main = "Spatial distn. of students' reading hour", 
+     breaks = "quantile")
+```
+
+```{r}
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf["books_read"], 
+     main = "Spatial distn. of number of books read", 
+     breaks = "quantile")
+#legend("topright", legend = "books_read", fill = topo.colors(5))
+```
+
+```{r}
+reading_sf <- st_read("reading_cultre.shp")
+plot(reading_sf["cgpa"], main = "Spatial Distribution of Students' CGPA", breaks = "quantile")
+# Add a legend
+#legend("topright", legend = "CGPA", fill = topo.colors(5))
+```
+
+```{r}
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf["love_readi"], 
+     main = "Spatial distn. of students who love reading", 
+     breaks = "quantile")
+#legend("topright", legend = "Love reading", fill = topo.colors(5))
+```
+
+```{r}
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf["met_standa"], 
+     main = "Spatial distn. of readers who read at least 1 hour per day", 
+     breaks = "quantile")
+```
+
+```{r}
+reading_sf = st_read("reading_cultre.shp") #shape file earlier created
+plot(reading_sf["finis_book"], 
+     main = "Spatial distn. of readers who finished their last book", 
+     breaks = "quantile")
+```
+
+### Six maps in one frame
+
+```{r}
+library(tmap)
+
+# Read shapefile
+reading_sf <- st_read("reading_cultre.shp")
+
+# Set up a 2x3 layout with tmap
+tm_layout <- tm_layout(title = c("Reading Hour", "Books Read", "CGPA", "Love Reading", "At least 1 hr/day", "Finished last book"),
+                       frame = FALSE,
+                       asp = 0)  # Set aspect ratio to 0 for individual map customization
+
+# Plot the first map
+tm1 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("reading_hr", title = "Reading Hour", style = "quantile")
+
+# Plot the second map
+tm2 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("books_read", title = "Number of Books Read", style = "quantile")
+
+# Plot the third map
+tm3 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("cgpa", title = "CGPA", style = "quantile")
+
+# Plot the fourth map
+tm4 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("love_readi", title = "Love Reading", style = "quantile")
+
+# Plot the fifth map
+tm5 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("met_standa", title = "At least 1 hr/day", style = "quantile")
+
+# Plot the sixth map
+tm6 <- tm_shape(reading_sf) +
+  tm_borders() +
+  tm_fill("finis_book", title = "Finished last book", style = "quantile")
+
+# Display the maps in a 2x3 layout
+tmap_arrange(list(tm1, tm2, tm3, tm4, tm5, tm6), layout = tm_layout)
+```
+
+```{r}
+# read the data from excel for other analysis
+reading_data <- read.csv("reading_culture_coordinates.csv")
+```
+
+```{r}
+#define our regression equation so we don't have to type it each time
+reg.eq1=reading_hr ~ books_read + cgpa + love_readi + met_standa + finis_book
+reg1=lm(reg.eq1,data=reading)
+```
+
+### Create a spatial weights matrix W (from queen contiguity)
+
+```{r}
+# Create a spatial weights matrix (queen contiguity)
+listw <- mat2listw(matrix(rbinom(nrow(reading_data)^2, 1, 0.2), nrow(reading_data)))
+
+listw
+```
+
+### lm.morantest
+
+```{r}
+lm.morantest(reg1, listw )
+```
+
+```{r}
+#turn off scientific notation for reasonably-sized values
+#ptions(scipen=7)
+```
+
+### Let's run the Four simplest models: OLS, SLX, Lag Y, and Lag Error
+
+### OLS model
+
+```{r}
+library(spdep)
+library(spatialreg)
+reg1=lm(reg.eq1,data=reading)
+reg1b=lm(reading_hr ~ books_read + cgpa + love_readi + met_standa + finis_book, data=reading)
+summary(reg1)
+summary(reg1b)
+lm.morantest(reg1,listw)
+#lm.moranplot(reg1,listw1)
+lm.LMtests(reg1,listw,test=c("LMerr", "LMlag", "RLMerr", "RLMlag", "SARMA"))
+```
+
+### SLX (Spatial Lag Model with Exogenous Variables)
+
+```{r}
+# Assuming your data is named 'your_data'
+# Load required packages
+library(spatialreg)
+
+# Create an 'sf' object with the spatial coordinates
+reading_sf_data <- st_as_sf(reading_data, coords = c("long", "lat"))
+
+# Create a spatial weights matrix (queen contiguity)
+listw <- mat2listw(matrix(rbinom(nrow(reading_data)^2, 1, 0.2), nrow(reading_data)))
+
+# Perform an SLX model
+slx_model <- lmSLX(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book, data = reading_data, listw = listw)
+
+# Display model summary
+summary(slx_model)
+
+
+stargazer(slx_model, type = "text")
+```
+
+```{r}
+#or just use OLS, doing it "by hand"
+#create lagged x's
+x1 = model.matrix(reg1) #x values used in OLS regression #1
+#create lagged X values, change name prepending "lagx."
+lagx1=create_WX(x1,listw,prefix="lagx") 
+
+reg2=lm(reading_hr ~ books_read + cgpa + love_readi + met_standa + finis_book, data=reading,listw = listw)
+
+reading_data2=cbind(reading_data,lagx1)
+reg2b=lm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book + lagx.books_read + lagx.cgpa + lagx.love_readi + lagx.met_standa + lagx.finis_book, data=reading_data2)
+
+reg2c=lm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book + lagx.books_read + lagx.cgpa +lagx.love_readi +lagx.met_standa + lagx.finis_book-1, data=reading_data2)
+```
+
+```{r}
+summary(reg2b) #only difference is in R^2 calculation& F-Stat? Strange! 
+
+
+summary(reg2c)
+
+#Which is "right"? Doing it by hand give the correct answers- bug in lmSLX.
+rsq.reg2=1-sum(reg2$residuals^2)/(var(reading_data$reading_hr)*(length(reading_data$reading_hr)-1))
+rsq.reg2b=1-sum(reg2b$residuals^2)/(var(reading_data$reading_hr)*(length(reading_data$reading_hr)-1))
+rsq.reg2  
+rsq.reg2b
+```
+
+```{r}
+#I confirmed this bug with Roger Bivand and he has fixed the code- 
+#it might take a little while to make it into the next spdep update.
+#To follow this see https://github.com/r-spatial/spdep/commit/becba8b9f8861421124f6a947390fb4e57b8e0ef
+
+library(lagsarlmtree)
+reg3=lagsarlm(reg.eq1,data= reading, listw)
+summary(reg3)
+
+stargazer(reg3, type = "text")
+```
+
+```{r}
+impacts(reg3,listw=listw)
+summary(impacts(reg3,listw=listw,R=500),zstats=TRUE) #Add zstats,pvals
+
+#Caution: These pvalues are simulated, and seem to vary a bit from run to run.
+
+#SEM Spatial Error Model  y=XB+u,   u=LWu+e
+reg4=errorsarlm(reg.eq1,data=reading, listw)
+summary(reg4)
+
+stargazer(reg4, type = "text")
+
+#Spatial Hausman Test
+Hausman.test(reg4)
+```
+
+### Other spatial models
+
+```{r}
+# Create lag terms for the variables of interest
+reading$lagx_book_read <- lag.listw(listw, reading$books_read)
+```
+
+### SAR (Spatial Autoregressive) model
+
+```{r}
+sar_model <- lagsarlm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book + lagx.books_read, data = reading_data2, listw = listw)
+summary(sar_model)
+
+stargazer(sar_model, type = "text")
+```
+
+### SEM (Spatial Error Model)
+
+```{r}
+sem_model <- errorsarlm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book, data = reading_data2, listw = listw)
+summary(sem_model)
+
+stargazer(sem_model, type = "text")
+```
+
+### SLX (Spatial Lag model)
+
+```{r}
+slx_model <- lagsarlm(books_read ~ reading_hr + cgpa + love_reading + met_standard + finish_book, data = reading_data2, listw = listw)
+
+# Print model summary
+summary(slx_model)
+```
+
+### SDM (Spatial Durbin Model)
+
+```{r}
+sdm_model <- lagsarlm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book + lagx.books_read, data = reading_data2, listw = listw, type = "mixed")
+summary(sdm_model)
+
+stargazer(sdm_model, type = "text")
+```
+
+### SAC (Spatial Autoregressive with Conditional Heteroskedasticity)
+
+```{r}
+sac_model <- sacsarlm(reading_hr ~ books_read + cgpa + love_reading + met_standard + finish_book + lagx.books_read, data = reading_data2, listw = listw)
+summary(sac_model)
+
+stargazer(sac_model, type = "text")
+```
+
+### Determination of the best model
+
+Determining the "best" model depends on several factors including the
+specific characteristics of your data, the goals of your analysis, and
+the assumptions of the different spatial econometric models. Here, I'll
+provide a brief overview of each model type and considerations for
+choosing the best one:
+
+1.  **Spatial Autoregressive (SAR) Model:**
+
+    -   Assumes that the dependent variable is influenced by the values
+        of the variable itself in neighboring observations.
+
+    -   Suitable when there is spatial dependence, and the variable of
+        interest exhibits spatial autocorrelation.
+
+2.  **Spatial Error Model (SEM):**
+
+    -   Assumes that there is spatial autocorrelation in the error term.
+
+    -   Suitable when there are unobserved factors that vary spatially
+        and are correlated.
+
+3.  **Spatial Durbin Model (SDM):**
+
+    -   A combination of SAR and SEM, including both lagged values of
+        the dependent variable and spatial autocorrelation in the error
+        term.
+
+    -   Suitable when both spatial dependence in the variable of
+        interest and spatial dependence in the error term are present.
+
+4.  **Spatial Autoregressive with Conditional Heteroskedasticity
+    (SAC):**
+
+    -   Extends SAR model by allowing for conditional heteroskedasticity
+        in the errors.
+
+    -   Suitable when there are variations in the conditional variance
+        of the errors across spatial units.
+
+| Model Type                                                           | Description                                                                                        |
+|-------------------|----------------------------------------------------|
+| **Spatial Autoregressive (SAR)**                                     | Assumes the dependent variable is influenced by its own lagged values in neighboring observations. |
+| **Spatial Error Model (SEM)**                                        | Assumes there is spatial autocorrelation in the error term, capturing unobserved spatial factors.  |
+| **Spatial Durbin Model (SDM)**                                       | Combines SAR and SEM, including both lagged values of the dependent variable and spatial errors.   |
+| **Spatial Autoregressive with Conditional Heteroskedasticity (SAC)** | Extends SAR with conditional heteroskedasticity in the errors.                                     |
+
+To determine the best model:
+
+-   **Consider Model Assumptions:**
+
+Assess whether the assumptions of each model are met in your data.
+
+-   **Check Model Fit:**
+
+Evaluate goodness-of-fit measures, such as AIC or BIC, to compare model
+performance.
+
+-   **Interpretability:**
+
+Choose a model that provides meaningful interpretations for your
+research question.
+
+-   **Diagnose Residuals:** Examine residuals for spatial
+    autocorrelation or heteroskedasticity patterns.
+
+It's common to start with simpler models and then move to more complex
+ones if needed. You may also consider using model selection techniques
+or cross-validation to choose the best-fitting model.
+
+For example, you can compare AIC or BIC values for different models:
+
+```{r}
+# Assuming you have already fitted the models: sar_model, sem_model, sdm_model, sac_model
+
+# Calculate AIC values for each model
+aic_values <- c(AIC(sar_model), AIC(sem_model), AIC(slx_model), AIC(sdm_model), AIC(sac_model))
+
+# Create a data frame to store AIC values and model names
+model_comparison <- data.frame(
+  Model = c("SAR", "SEM", "SLX","SDM", "SAC"),
+  AIC = aic_values
+)
+
+# Identify the model with the lowest AIC
+best_model_name <- model_comparison$Model[which.min(model_comparison$AIC)]
+best_model <- switch(best_model_name,
+                     SAR = sar_model,
+                     SEM = sem_model,
+                     SLX = slx_model,
+                     SDM = sdm_model,
+                     SAC = sac_model)
+
+# Display the table of AIC values
+print(model_comparison)
+
+# Display the name of the best model
+cat("\nBest Model:", best_model_name, "\n")
+
+# Print summary of the best model
+summary(best_model)
+```
+
+```{r}
+# Assuming you have already fitted the models: sar_model, sem_model, sdm_model, sac_model
+
+# Calculate BIC values for each model
+BIC_values <- c(BIC(sar_model), BIC(sem_model), BIC(slx_model), BIC(sdm_model), BIC(sac_model))
+
+# Create a data frame to store BIC values and model names
+model_comparison <- data.frame(
+  Model = c("SAR", "SEM", "SLX","SDM", "SAC"),
+  BIC = BIC_values
+)
+
+# Identify the model with the lowest BIC
+best_model_name <- model_comparison$Model[which.min(model_comparison$BIC)]
+best_model <- switch(best_model_name,
+                     SAR = sar_model,
+                     SEM = sem_model,
+                     SLX = slx_model,
+                     SDM = sdm_model,
+                     SAC = sac_model)
+
+# Display the table of BIC values
+print(model_comparison)
+
+# Display the name of the best model
+cat("\nBest Model:", best_model_name, "\n")
+
+# Print summary of the best model
+summary(best_model)
+```
+
+### Summary of the models
+
+```{r}
+# Load required packages
+library(broom)
+library(dplyr)
+
+# Combine model outputs into a single table
+model_table <- bind_rows(
+  tidy(sar_model, conf.int = TRUE),
+  tidy(sem_model, conf.int = TRUE),
+  tidy(slx_model, conf.int = TRUE),
+  tidy(sdm_model, conf.int = TRUE),
+  tidy(sac_model, conf.int = TRUE)
+)
+
+# Print the combined table
+print(model_table)
+
+```
+
+### Export the tables to Excel
+
+```{r}
+# Specify the Excel file path
+excel_file <- "model_tables2.csv"
+
+# Write the table to Excel
+write.csv(model_table, excel_file)
+
+# Print a message indicating successful export
+cat("Table exported to:", excel_file, "\n")
+
+```
+
+### SPATIAL REGRESSION MODELS
+
+### Spatial Autoregressive (SAR) model
+
+A Spatial Autoregressive (SAR) model is a statistical and econometric
+tool used to analyze spatial data. It is particularly employed in
+spatial econometrics to account for spatial dependencies or spatial
+autocorrelation in observed phenomena. Spatial autocorrelation implies
+that the values of a variable in one location are correlated with the
+values of the same variable in neighboring locations.
+
+The SAR model is an extension of the traditional autoregressive (AR)
+model to incorporate spatial aspects. In a SAR model, the value of a
+variable at a specific location depends not only on its own past values
+(autoregressive component) but also on the values of the same variable
+in neighboring locations. The model is typically represented as follows:
+
+$$ Y_i = \rho \sum_{j=1}^{n} W_{ij}Y_j + \varepsilon_i $$
+
+where: - $Y_i$ is the value of the variable at location $i$, - $\rho$ is
+the spatial autoregressive parameter, representing the strength of
+spatial dependence, - $W_{ij}$ is a spatial weight matrix that captures
+the spatial relationships between locations. It reflects how much the
+value at location $i$ is influenced by the values at neighboring
+locations $j$, - $\varepsilon_i$ is the error term, assumed to be
+independently and identically distributed.
+
+The spatial weight matrix ($W$) is crucial in SAR models and can take
+various forms, such as binary contiguity (defining whether locations
+share a common boundary) or distance-based weights. The choice of the
+weight matrix depends on the nature of the spatial relationships in the
+data.
+
+Estimating SAR models involves solving for the spatial autoregressive
+parameter ($\rho$) and other parameters using methods like maximum
+likelihood estimation (MLE) or generalized method of moments (GMM).
+
+These models are useful in studying phenomena where spatial interactions
+play a role, such as regional economic growth, land-use patterns, and
+disease spread. SAR models help researchers account for spatial
+dependencies and provide more accurate and reliable results in the
+analysis of spatial data.
+
+A Spatial Error Model (SEM) is a type of spatial econometric model used
+to account for spatial autocorrelation in the error term of a regression
+model. It is suitable when there is spatial dependence in unobserved
+factors affecting the dependent variable. The SEM is expressed as
+follows:
+
+### Spatial Error (SEM) model
+
+$$ y = X \beta + \varepsilon $$
+
+Where: - $y$ is the dependent variable, - $X$ is the matrix of
+independent variables, - $\beta$ is the vector of coefficients, -
+$\varepsilon$ is the error term.
+
+The distinctive feature of the SEM is the specification of the error
+term, which includes a spatially autocorrelated component:
+
+$$ \varepsilon = \lambda W \varepsilon + u $$
+
+Where: - $\lambda$ is the spatial autoregressive coefficient, - $W$ is
+the spatial weights matrix, - $\varepsilon$ is a vector of the spatially
+autocorrelated errors, - $u$ is a vector of independent and identically
+distributed errors.
+
+The spatial weights matrix $W$ reflects the spatial relationships
+between observations. It specifies how much influence the neighboring
+observations have on each other.
+
+The complete SEM model can be expressed as:
+
+$$ y = X \beta + \varepsilon $$
+$$ \varepsilon = (I - \lambda W)^{-1} u $$
+
+In practice, estimating the SEM involves finding the values of $\beta$
+and $\lambda$ that minimize the sum of squared residuals. This is
+typically done using maximum likelihood estimation or other suitable
+methods.
+
+The SEM allows for the incorporation of spatial dependence in the error
+term, making it a valuable tool when standard regression models assume
+that errors are independent and identically distributed, which might not
+hold in the presence of spatial autocorrelation.
+
+### Spatial Lag Model with Exogenous Variables (SLX) model
+
+The SLX model, or Spatial Lag Model with Exogenous Variables, is a
+spatial econometric model used to analyze spatial data where the
+dependent variable is influenced by both its own spatial lag and
+exogenous (non-spatial) variables. The SLX model is an extension of the
+Spatial Autoregressive (SAR) model by incorporating additional
+explanatory variables.
+
+In the SLX model, the general form can be expressed as follows:
+
+$$ Y = \rho WY + XB + \varepsilon $$
+
+-   $Y$ is the vector of the dependent variable.
+-   $\rho$ is the spatial autoregressive coefficient representing the
+    impact of the spatial lag of $Y$ on $Y$ itself.
+-   $W$ is the spatial weights matrix.
+-   $X$ is the matrix of exogenous (non-spatial) explanatory variables.
+-   $B$ is the vector of coefficients associated with the exogenous
+    variables.
+-   $\varepsilon$ is the error term.
+
+The SLX model captures spatial dependence through the spatial lag term
+$\rho WY$ and includes additional explanatory variables in the form of
+the matrix $X$.
+
+The SLX model is particularly useful when there is evidence of spatial
+dependence and you want to account for both spatial lag and additional
+explanatory variables in your analysis.
+
+### Spatial Durbin Model (SDM)
+
+The Spatial Durbin Model (SDM) is an extension of the Spatial
+Autoregressive (SAR) model, incorporating both spatial autoregressive
+and spatial lag components. It is used in spatial econometrics to
+analyze the relationships between variables in a spatial context,
+considering the potential spatial interdependence of observations.
+
+The SDM is represented as follows:
+
+$$ Y_i = \rho WY + \alpha X_i + \varepsilon_i $$
+
+where: - $Y_i$ is the dependent variable at location $i$, - $\rho$ is
+the spatial autoregressive parameter, representing the strength of
+spatial dependence, - $W$ is the spatial weight matrix, - $\alpha$ is a
+vector of coefficients for the exogenous variables $X_i$ at location
+$i$, - $\varepsilon_i$ is the error term, assumed to be independently
+and identically distributed.
+
+The term $\rho WY$ in the equation is the spatial lag component,
+indicating that the dependent variable at location $i$ is influenced by
+the values of the dependent variable in neighboring locations as
+captured by the spatial weight matrix $W$. The term $\alpha X_i$
+represents the impact of the exogenous variables $X_i$ on the dependent
+variable.
+
+Estimation methods for the SDM include maximum likelihood estimation
+(MLE), generalized method of moments (GMM), and spatial two-stage least
+squares (S2SLS), depending on the structure of the model and the
+assumptions made about the error term.
+
+The Spatial Durbin Model is particularly useful when there is a need to
+account for both direct and indirect spatial effects in the analysis of
+spatial data. It is applied in various fields, including regional
+economics, urban studies, environmental science, and public health,
+where spatial interactions and dependencies are essential considerations
+in modeling and understanding the underlying processes.
+
+### Spatial Autoregressive with Conditional Heteroskedasticity (SAC) model
+
+The Spatial Autoregressive with Conditional Heteroskedasticity (SAC)
+model is an extension of the Spatial Autoregressive (SAR) model that
+incorporates conditional heteroskedasticity, allowing for time-varying
+volatility in the spatial autoregressive process. This model is
+especially relevant when dealing with spatial data that exhibits both
+spatial dependence and time-varying volatility.
+
+The SAC model is often represented as follows:
+
+$$ Y_t = \rho W Y_t + \varepsilon_t $$
+
+$$ \varepsilon_t = \sigma_t \varepsilon_{t-1} $$
+
+where: - $Y_t$ is a vector of spatially dependent variables at time
+$t$, - $\rho$ is the spatial autoregressive parameter, representing the
+strength of spatial dependence, - $W$ is the spatial weight matrix, -
+$\varepsilon_t$ is a vector of conditional heteroskedastic errors at
+time $t$, - $\sigma_t$ is a diagonal matrix capturing the time-varying
+volatility.
+
+The spatial lag component ($\rho W Y_t$) reflects the influence of
+neighboring locations on the current values, similar to the traditional
+SAR model. The conditional heteroskedasticity term ($\varepsilon_t$)
+introduces time-varying volatility, with the volatility at time $t$
+influenced by the past volatility ($\varepsilon_{t-1}$).
+
+Estimating the SAC model involves simultaneously estimating the
+parameters of the spatial autoregressive process ($\rho$) and the
+conditional heteroskedasticity process ($\sigma_t$). This can be done
+using various estimation techniques, such as maximum likelihood
+estimation (MLE), generalized method of moments (GMM), or Bayesian
+methods.
+
+The SAC model is particularly useful when dealing with spatial time
+series data that exhibit both spatial dependence and changing volatility
+over time. Applications of the SAC model can be found in fields such as
+finance, environmental studies, and regional economics, where both
+spatial interactions and time-varying volatility are important
+considerations.
+
+### Spatial Autocorrelation Plot
+
+```{r}
+# Assuming 'slx_model' is your fitted SLX model
+plot(residuals(slx_model), lag.listw(listw, residuals(slx_model)), 
+     xlab = "Residuals", ylab = "Spatial Lag of Residuals",
+     main = "Spatial Autocorrelation Plot")
+abline(h = 0, col = "red", lty = 2)
+```
+
+### Spatial Lag Scatterplot
+
+```{r}
+# Assuming 'your_data' is your spatial dataset
+plot(reading$reading_hr, lag.listw(listw, reading$reading_hr),
+     xlab = "Reading hour", ylab = "Spatial Lag of Dependent Variable",
+     main = "Spatial Lag Scatterplot")
+abline(0, 1, col = "red", lty = 2)
+```
+
+### Residuals Plot
+
+Plot the residuals against the fitted values to check for
+heteroskedasticity.
+
+```{r}
+plot(fitted(slx_model), residuals(slx_model),
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted Values")
+abline(h = 0, col = "red", lty = 2)
+```
+
+### Spatial autocorrelation tests: Moran's I Test
+
+```{r}
+# Load required libraries
+library(spatialreg)
+library(spdep)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform Moran's I test
+perform_morans_i_test <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Create a spatial weights matrix with queen contiguity
+  w <- listw
+  
+  # Perform Moran's I test
+  morans_i_test_result <- moran.test(residuals_model, listw = w)
+  
+  return(morans_i_test_result)
+}
+
+# Apply Moran's I test to each model
+morans_i_test_result_sar <- perform_morans_i_test(sar_model)
+morans_i_test_result_sem <- perform_morans_i_test(sem_model)
+morans_i_test_result_slx <- perform_morans_i_test(slx_model)
+morans_i_test_result_sdm <- perform_morans_i_test(sdm_model)
+morans_i_test_result_sac <- perform_morans_i_test(sac_model)
+
+# Print the test results
+cat("SAR Model:")
+print(morans_i_test_result_sar)
+cat("\nSEM Model:")
+print(morans_i_test_result_sem)
+cat("\nSLX Model:")
+print(morans_i_test_result_slx)
+cat("\nSDM Model:")
+print(morans_i_test_result_sdm)
+cat("\nSAC Model:")
+print(morans_i_test_result_sac)
+```
+
+### Visulization of spatial autocorrelation using Moran's I plot
+
+```{r}
+# Assuming you have a spatial regression model 'sem_model' which is the best model and a spatial weights matrix 'listw'
+
+# Extract residuals
+residuals <- residuals(sem_model)
+
+# Compute spatial lag of residuals
+lagged_residuals <- lag.listw(listw, residuals)
+
+# Create Moran scatterplot
+plot(lagged_residuals ~ residuals, main = "Moran Scatterplot", xlab = "Residuals", ylab = "Spatial Lag of Residuals")
+
+# Add the expectation line
+abline(h = mean(lagged_residuals), col = "red", lty = 2)  # 'h' is the y-intercept, using the mean of lagged_residuals
+```
+
+### Local Indicators of Spatial Association (LISA) test
+
+```{r}
+# Function to perform LISA test
+perform_lisa_test <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Create a spatial weights matrix
+  w <- listw
+  
+  # Perform LISA test
+  lisa_test_result <- localmoran(residuals_model, w)
+  
+  return(lisa_test_result)
+}
+
+# Apply LISA test to each model
+lisa_test_result_sar <- perform_lisa_test(sar_model)
+lisa_test_result_sem <- perform_lisa_test(sem_model)
+lisa_test_result_slx <- perform_lisa_test(slx_model)
+lisa_test_result_sdm <- perform_lisa_test(sdm_model)
+lisa_test_result_sac <- perform_lisa_test(sac_model)
+
+# Print the test results
+cat("SAR Model:")
+print(lisa_test_result_sar)
+cat("\nSEM Model:")
+print(lisa_test_result_sem)
+cat("\nSLX Model:")
+print(lisa_test_result_slx)
+cat("\nSDM Model:")
+print(lisa_test_result_sdm)
+cat("\nSAC Model:")
+print(lisa_test_result_sac)
+```
+
+### Spatial heteroscedasticity tests
+
+Spatial heteroscedasticity refers to the situation where the variability
+of the errors in a spatial regression model is not constant across
+observations. There are several tests and diagnostic tools available to
+detect spatial heteroscedasticity. Here are a few suggestions:
+
+1.  **White's Test for Spatial Heteroscedasticity:** White's test is an
+    extension of the classic White test for heteroscedasticity to the
+    spatial regression context. It tests the null hypothesis that the
+    variances of the errors are constant across space.
+
+2.  **Breusch-Pagan Spatial Heteroscedasticity Test:**
+
+The Breusch-Pagan test is a classical test for heteroscedasticity in
+regression models. For spatial data, you can apply a modification to
+account for spatial dependence.
+
+3.  **Diagnostics Plots:**
+
+Visual inspection of residual plots, such as a scatterplot of residuals
+against fitted values, may reveal patterns indicative of
+heteroscedasticity. Uneven spread or changing patterns across the fitted
+values can suggest spatial heteroscedasticity.
+
+These tests and diagnostic tools can help you assess whether there is
+evidence of spatial heteroscedasticity in your spatial regression model.
+Keep in mind that the choice of a specific test may depend on the
+characteristics of your data and the assumptions of your model.
+
+### White test
+
+```{r}
+# Load the required libraries
+library(lmtest)
+library(sandwich)
+library(broom)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform White test
+perform_white_test <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Fit a regression model to squared residuals
+  white_model <- lm(residuals_model^2 ~ fitted(model))
+  
+  # Perform White test using vcovHC from the sandwich package
+  white_test_result <- tidy(coeftest(white_model, vcov. = vcovHC(white_model)))
+  
+  return(white_test_result)
+}
+
+# Apply White test to each model
+white_test_result_sar <- perform_white_test(sar_model)
+white_test_result_sem <- perform_white_test(sem_model)
+white_test_result_slx <- perform_white_test(slx_model)
+white_test_result_sdm <- perform_white_test(sdm_model)
+white_test_result_sac <- perform_white_test(sac_model)
+
+# Print the data frame
+print("SAR Model:")
+print(white_test_result_sar)
+cat("\nSEM Model:")
+print(white_test_result_sem)
+cat("\nSLX Model:")
+print(white_test_result_slx)
+cat("\nSDM Model:")
+print(white_test_result_sdm)
+cat("\nSAC Model:")
+print(white_test_result_sac)
+
+```
+
+### Breusch-Pagan Spatial Heteroscedasticity Test
+
+```{r}
+# Load required libraries
+library(lmtest)
+library(sandwich)  # Load sandwich for vcovHC
+library(spatialreg)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform Breusch-Pagan test for spatial heteroscedasticity
+perform_bp_test <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Fit a regression model to squared residuals
+  bp_model <- lm(residuals_model^2 ~ fitted(model))
+  
+  # Perform Breusch-Pagan test using vcovHC from the sandwich package
+  bp_test_result <- coeftest(bp_model, vcov. = vcovHC(bp_model))
+  
+  return(bp_test_result)
+}
+
+# Apply Breusch-Pagan test to each model
+bp_test_result_sar <- perform_bp_test(sar_model)
+bp_test_result_sem <- perform_bp_test(sem_model)
+bp_test_result_slx <- perform_bp_test(slx_model)
+bp_test_result_sdm <- perform_bp_test(sdm_model)
+bp_test_result_sac <- perform_bp_test(sac_model)
+
+# Print the test results
+cat("SAR Model:")
+print(bp_test_result_sar)
+cat("\nSEM Model:")
+print(bp_test_result_sem)
+cat("\nSLX Model:")
+print(bp_test_result_slx)
+cat("\nSDM Model:")
+print(bp_test_result_sdm)
+cat("\nSAC Model:")
+print(bp_test_result_sac)
+
+```
+
+### Non-normality of spatial data
+
+Spatial data, particularly when dealing with observations at
+geographical locations, may exhibit spatial patterns, clustering, or
+trends that can violate the assumptions of normality. Therefore, the
+normality assumption might not always hold for spatial data.
+
+The normality assumption is often relevant when working with linear
+regression models and making statistical inferences based on parametric
+tests. However, spatial data may have characteristics that make them
+inherently non-normal. Some reasons why spatial data might deviate from
+normality include:
+
+1.  **Spatial Autocorrelation:** Observations in close proximity tend to
+    be more similar than those far apart, leading to spatial
+    autocorrelation. This can result in non-normality of residuals.
+
+2.  **Spatial Trends and Patterns:** Spatial data may exhibit trends,
+    patterns, or spatial heterogeneity that violate the assumption of
+    normally distributed errors.
+
+3.  **Outliers and Anomalies:** Spatial data might contain outliers or
+    anomalies that deviate from a normal distribution.
+
+When working with spatial data, alternative approaches that account for
+spatial dependencies or non-normality may be more appropriate. Spatial
+regression models, such as SAR (Spatial Autoregressive) and SEM (Spatial
+Error Model), are designed to handle spatial dependencies. Additionally,
+non-parametric methods or spatial statistics that do not rely on
+normality assumptions can be valuable for spatial data analysis.
+
+### Jarque-Bera test for the models
+
+```{r}
+# Load required libraries
+library(moments)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Extract residuals from each model
+residuals_sar <- residuals(sar_model)
+residuals_sem <- residuals(sem_model)
+residuals_slx <- residuals(slx_model)
+residuals_sdm <- residuals(sdm_model)
+residuals_sac <- residuals(sac_model)
+
+# Perform Jarque-Bera tests
+jb_test_result_sar <- jarque.test(residuals_sar)
+jb_test_result_sem <- jarque.test(residuals_sem)
+jb_test_result_slx <- jarque.test(residuals_slx)
+jb_test_result_sdm <- jarque.test(residuals_sdm)
+jb_test_result_sac <- jarque.test(residuals_sac)
+
+# Create a data frame with the results
+jb_test_results <- data.frame(
+  SAR = c(JB_stat = jb_test_result_sar$statistic, p_value = jb_test_result_sar$p.value),
+  SEM = c(JB_stat = jb_test_result_sem$statistic, p_value = jb_test_result_sem$p.value),
+  SLX = c(JB_stat = jb_test_result_slx$statistic, p_value = jb_test_result_slx$p.value),
+  SDM = c(JB_stat = jb_test_result_sdm$statistic, p_value = jb_test_result_sdm$p.value),
+  SAC = c(JB_stat = jb_test_result_sac$statistic, p_value = jb_test_result_sac$p.value)
+)
+
+# Print the data frame
+print(jb_test_results)
+```
+
+### Anderson-Darling (AD) test
+
+```{r}
+# Load required libraries
+library(nortest)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform AD test and extract relevant information
+perform_ad_test <- function(model) {
+  residuals_model <- residuals(model)
+  ad_test_result <- ad.test(residuals_model)
+  return(c(AD_stat = ad_test_result$statistic, p_value = ad_test_result$p.value))
+}
+
+# Apply AD test to each model
+ad_test_result_sar <- perform_ad_test(sar_model)
+ad_test_result_sem <- perform_ad_test(sem_model)
+ad_test_result_slx <- perform_ad_test(slx_model)
+ad_test_result_sdm <- perform_ad_test(sdm_model)
+ad_test_result_sac <- perform_ad_test(sac_model)
+
+# Create a data frame with the results
+ad_test_results <- data.frame(
+  SAR = ad_test_result_sar,
+  SEM = ad_test_result_sem,
+  SLX = ad_test_result_slx,
+  SDM = ad_test_result_sdm,
+  SAC = ad_test_result_sac
+)
+
+# Print the data frame
+print(ad_test_results)
+```
+
+### Shapiro-Wilk and D'Agostino's K-squared (skewness) test
+
+```{r}
+# Load required libraries
+library(e1071)
+library(moments)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform Shapiro-Wilk test and skewness test
+perform_tests <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Perform Shapiro-Wilk test
+  shapiro_wilk_test_result <- shapiro.test(residuals_model)
+  
+  # Perform skewness test
+  skewness_result <- skewness(residuals_model)
+  
+  return(c(
+    SW_test_stat = shapiro_wilk_test_result$statistic, SW_p_value = shapiro_wilk_test_result$p.value,
+    Skewness = skewness_result
+  ))
+}
+
+# Apply tests to each model
+test_result_sar <- perform_tests(sar_model)
+test_result_sem <- perform_tests(sem_model)
+test_result_slx <- perform_tests(slx_model)
+test_result_sdm <- perform_tests(sdm_model)
+test_result_sac <- perform_tests(sac_model)
+
+# Create a data frame with the results
+test_results <- data.frame(
+  SAR = test_result_sar,
+  SEM = test_result_sem,
+  SLX = test_result_slx,
+  SDM = test_result_sdm,
+  SAC = test_result_sac
+)
+
+# Print the data frame
+print(test_results)
+```
+
+## Skewness Z-tests
+
+```{r}
+# Load required libraries
+library(e1071)
+library(moments)
+
+# Assuming 'sar_model', 'sem_model', 'slx_model', 'sdm_model', 'sac_model' are your spatial regression models
+
+# Function to perform Shapiro-Wilk test and kurtosis test
+perform_tests <- function(model) {
+  # Extract residuals from the model
+  residuals_model <- residuals(model)
+  
+  # Perform Shapiro-Wilk test
+  shapiro_wilk_test_result <- shapiro.test(residuals_model)
+  
+  # Calculate kurtosis
+  kurtosis_result <- kurtosis(residuals_model)
+  
+  return(c(
+    SW_test_stat = shapiro_wilk_test_result$statistic, SW_p_value = shapiro_wilk_test_result$p.value,
+    Kurtosis = kurtosis_result
+  ))
+}
+
+# Apply tests to each model
+test_result_sar <- perform_tests(sar_model)
+test_result_sem <- perform_tests(sem_model)
+test_result_slx <- perform_tests(slx_model)
+test_result_sdm <- perform_tests(sdm_model)
+test_result_sac <- perform_tests(sac_model)
+
+# Create a data frame with the results
+test_results <- data.frame(
+  SAR = test_result_sar,
+  SEM = test_result_sem,
+  SLX = test_result_slx,
+  SDM = test_result_sdm,
+  SAC = test_result_sac
+)
+
+# Print the data frame
+print(test_results)
+```
+
+
